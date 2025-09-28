@@ -1,0 +1,42 @@
+{
+  "name": "@yandex-id/figma-updater",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "buildx",
+    "ci:build": "npm run build",
+    "ci:lint": "npm run lint:tsc && npm run lintstaged",
+    "lint:tsc": "tsc -b --noEmit",
+    "lintstaged": "lint-staged --vcs-adapter @yandex-int/si.ci.lint-staged-arc-workflow --no-stash",
+    "prepare": "npm run build"
+  },
+  "bin": {
+    "figma-updater": "./bin/figma-updater.js"
+  },
+  "main": "./lib/cjs/index.cjs",
+  "module": "./lib/es/index.mjs",
+  "types": "./lib/types/index.d.ts",
+  "files": [
+    "lib",
+    "README.md"
+  ],
+  "dependencies": {
+    "@figma/rest-api-spec": "0.33.0",
+    "cac": "6.7.14",
+    "consola": "3.4.2",
+    "dotenv": "16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "22.12.0",
+    "typescript": "5.9.2",
+    "@yandex-id/buildx": "0.1.0",
+    "@yandex-id/eslint-config": "1.0.0",
+    "@yandex-id/prettier-config": "2.0.0",
+    "@yandex-int/lint-staged": "0.0.1",
+    "@yandex-int/si.ci.lint-staged-arc-workflow": "1.2.1",
+    "eslint": "9.23.0",
+    "prettier": "3.5.3",
+    "ts-node": "10.9.2",
+    "tsx": "4.20.4"
+  }
+}
