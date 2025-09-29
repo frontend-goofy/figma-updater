@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { LoadedConfig } from '../types.js';
+import type { LoadedConfig } from '../config/types.js';
 
 export type TranslationsMap = Record<string, string[]>;
 
-function parsePoString(input: string): string {
+function parseQuotedString(input: string): string {
   const match = input.match(/"(.*)"/);
 
   if (!match) {
@@ -61,7 +61,7 @@ export function parsePo(content: string): TranslationsMap {
     if (line.startsWith('msgstr')) {
       flush();
       collecting = true;
-      buffer = parsePoString(line);
+      buffer = parseQuotedString(line);
       if (!buffer) {
         buffer = '';
       }
@@ -70,7 +70,7 @@ export function parsePo(content: string): TranslationsMap {
 
     if (collecting) {
       if (line.startsWith('"')) {
-        buffer += parsePoString(line);
+        buffer += parseQuotedString(line);
         continue;
       }
 
@@ -83,9 +83,22 @@ export function parsePo(content: string): TranslationsMap {
   return result;
 }
 
-export async function loadTranslations(config: LoadedConfig): Promise<TranslationsMap> {
-  const translationsPath = path.resolve(config.rootDir, config.translations.path);
-  const content = await readFile(translationsPath, 'utf8');
+export class TranslationCatalog {
+  private cache: TranslationsMap | null = null;
 
-  return parsePo(content);
+  constructor(private readonly config: LoadedConfig) {}
+
+  private get catalogPath(): string {
+    return path.resolve(this.config.rootDir, this.config.translations.path);
+  }
+
+  async read(): Promise<TranslationsMap> {
+    if (this.cache) {
+      return this.cache;
+    }
+
+    const content = await readFile(this.catalogPath, 'utf8');
+    this.cache = parsePo(content);
+    return this.cache;
+  }
 }
