@@ -38,12 +38,21 @@ export class FigmaUpdaterWorkflow {
       return null;
     }
 
-    return versions.map((version) => ({
-      id: version.id,
-      label: version.label ?? undefined,
-      createdAt: new Date(version.created_at).toISOString(),
-      author: version.user.handle,
-    }));
+    return versions.map((version) => {
+      const createdAtSource = version.created_at ? new Date(version.created_at) : new Date();
+      const user = version.user;
+      const author =
+        typeof user === 'string'
+          ? user
+          : user?.handle ?? 'Unknown author';
+
+      return {
+        id: version.id,
+        label: version.label ?? undefined,
+        createdAt: createdAtSource.toISOString(),
+        author,
+      };
+    });
   }
 
   async buildDiffs(options: BuildDiffOptions): Promise<DiffMapping> {
