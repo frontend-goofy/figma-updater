@@ -1,4 +1,5 @@
 import type { ElizaConfig } from '../config/types.js';
+import { logError } from '../logger.js';
 import type { TranslationsMap } from './translation-catalog.js';
 
 interface ElizaResponse {
@@ -70,16 +71,31 @@ export class ElizaClient {
       },
     };
 
-    const response = await fetch(this.options.endpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `OAuth ${this.options.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    const response = await (async () => {
+      try {
+        return await fetch(this.options.endpoint, {
+          method: 'POST',
+          headers: {
+            Authorization: `OAuth ${this.options.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        });
+      } catch (error) {
+        logError(error, { context: 'Сбой запроса к Eliza API' });
+        return null;
+      }
+    })();
+
+    if (!response) {
+      return null;
+    }
 
     if (!response.ok) {
+      logError(
+        new Error(`Ответ ${response.status} ${response.statusText}`),
+        { context: 'Сбой запроса к Eliza API' },
+      );
       return null;
     }
 
@@ -98,7 +114,8 @@ export class ElizaClient {
       }
 
       return parsed.codePath;
-    } catch {
+    } catch (error) {
+      logError(error, { context: 'Не удалось разобрать ответ Eliza API' });
       return null;
     }
   }

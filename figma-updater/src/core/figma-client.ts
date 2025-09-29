@@ -6,6 +6,7 @@ import { type CanvasNode, type GetFileNodesResponse,
 } from '@figma/rest-api-spec';
 
 import type { FigmaConfig } from '../config/types.js';
+import { withErrorContext } from '../logger.js';
 
 function ensureTrailingSlash(input: string): string {
   return input.endsWith('/') ? input : `${input}/`;
@@ -34,13 +35,17 @@ export class FigmaClient {
     const apiUrl = ensureTrailingSlash(this.options.apiUrl);
     const fileKey = extractFileKey(figmaUrl);
 
-    const response = await fetch(`${apiUrl}${fileKey}${suffix}`, { headers });
+    try {
+      const response = await fetch(`${apiUrl}${fileKey}${suffix}`, { headers });
 
-    if (!response.ok) {
-      throw new Error(`Ошибка при запросе к Figma API: ${response.status} ${response.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Ошибка при запросе к Figma API: ${response.status} ${response.statusText}`);
+      }
+
+      return response;
+    } catch (error) {
+      throw withErrorContext(error, `Сбой запроса к Figma API (${suffix || '/'})`);
     }
-
-    return response;
   }
 
   private static assertFileResponse(payload: unknown): asserts payload is GetFileResponse {
