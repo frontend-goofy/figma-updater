@@ -1,20 +1,29 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import levenshtein from 'fast-levenshtein';
+
 import type { LoadedConfig } from '../config/types.js';
 import { logError, logger } from '../logger.js';
 import type { DiffMapping } from './types.js';
 import { ElizaClient } from './eliza-client.js';
 import { TranslationCatalog, type TranslationsMap } from './translation-catalog.js';
 
-async function replaceInFile(filePath: string, oldText: string, newText: string): Promise<boolean> {
+interface ReplacementCandidate {
+  codePath: string;
+  searchText: string;
+}
+
+const MAX_LEVENSHTEIN_DISTANCE = 4;
+
+async function replaceInFile(filePath: string, searchText: string, newText: string): Promise<boolean> {
   const content = await readFile(filePath, 'utf8');
 
-  if (!content.includes(oldText)) {
+  if (!content.includes(searchText)) {
     return false;
   }
 
-  const updated = content.replace(oldText, newText);
+  const updated = content.replace(searchText, newText);
   await writeFile(filePath, updated, 'utf8');
   return true;
 }
@@ -41,21 +50,79 @@ export interface FileRewriterOptions {
 export class FileRewriter {
   constructor(private readonly options: FileRewriterOptions) {}
 
-  private async resolveCandidatePaths(oldText: string, translations: TranslationsMap): Promise<string[]> {
+  private async resolveCandidatePaths(
+    oldText: string,
+    translations: TranslationsMap,
+  ): Promise<ReplacementCandidate[]> {
     const knownLocations = normalizeLocations(translations[oldText]);
 
     if (knownLocations.length > 0) {
-      return knownLocations;
+      return knownLocations.map((codePath) => ({ codePath, searchText: oldText }));
     }
 
-    const suggested = await this.options.eliza.findCodePath(oldText, translations);
+    const suggested = await this.options.eliza.findCodePaths(oldText, translations);
 
-    if (!suggested) {
+    if (!suggested || suggested.length === 0) {
       return [];
     }
 
-    logger.info(`Eliza API подсказала путь: ${suggested}. Если строка не обновится автоматически, попробуйте сделать это вручную.`);
-    return [suggested];
+    const uniqueCandidates = new Map<string, ReplacementCandidate>();
+
+    for (const codePath of suggested) {
+      const trimmedPath = codePath.trim();
+
+      if (!trimmedPath) {
+        continue;
+      }
+
+      let matched = false;
+
+      for (const [text, locations] of Object.entries(translations)) {
+        const normalizedLocations = normalizeLocations(locations);
+
+        if (normalizedLocations.includes(trimmedPath)) {
+          const key = `${trimmedPath}__${text}`;
+
+          if (!uniqueCandidates.has(key)) {
+            uniqueCandidates.set(key, { codePath: trimmedPath, searchText: text });
+          }
+
+          matched = true;
+        }
+      }
+
+      if (!matched) {
+        const key = `${trimmedPath}__${oldText}`;
+
+        if (!uniqueCandidates.has(key)) {
+          uniqueCandidates.set(key, { codePath: trimmedPath, searchText: oldText });
+        }
+      }
+    }
+
+    const candidates = [...uniqueCandidates.values()];
+
+    const filteredCandidates = candidates.filter((candidate) => {
+      if (candidate.searchText === oldText) {
+        return true;
+      }
+
+      const distance = levenshtein.get(oldText, candidate.searchText);
+
+      return distance <= MAX_LEVENSHTEIN_DISTANCE;
+    });
+
+    if (filteredCandidates.length === 0) {
+      return [];
+    }
+
+    const suggestedPaths = filteredCandidates.map((candidate) => candidate.codePath);
+
+    logger.info(
+      `Eliza API подсказала путь${suggestedPaths.length > 1 ? 'и' : ''}: ${suggestedPaths.join(', ')}. Если строка не обновится автоматически, попробуйте сделать это вручную.`,
+    );
+
+    return filteredCandidates;
   }
 
   async applyDiffs(diffs: DiffMapping): Promise<void> {
@@ -85,13 +152,19 @@ export class FileRewriter {
       let applied = false;
 
       for (const candidate of candidates) {
-        const targetPath = resolvePath(this.options.config.rootDir, candidate);
+        const targetPath = resolvePath(this.options.config.rootDir, candidate.codePath);
 
         try {
-          const success = await replaceInFile(targetPath, oldText, newText);
+          const success = await replaceInFile(targetPath, candidate.searchText, newText);
 
           if (success) {
-            logger.success(`Файл обновлен: ${targetPath}. Строка "${oldText}" заменена на "${newText}".`);
+            const replacedTextNote =
+              candidate.searchText === oldText
+                ? ''
+                : ` (в файле найдена строка "${candidate.searchText}")`;
+            logger.success(
+              `Файл обновлен: ${targetPath}. Строка "${oldText}" заменена на "${newText}"${replacedTextNote}.`,
+            );
             applied = true;
             break;
           }
@@ -101,7 +174,10 @@ export class FileRewriter {
       }
 
       if (!applied) {
-        logger.warn(`Строка "${oldText}" не найдена в указанных файлах.`);
+        const attemptedVariants = Array.from(new Set(candidates.map((candidate) => candidate.searchText)));
+        const attemptsList = attemptedVariants.map((variant) => `"${variant}"`).join(', ');
+        const suffix = attemptsList ? ` (попытки: ${attemptsList})` : '';
+        logger.warn(`Строка "${oldText}" не найдена в указанных файлах.${suffix}`);
       }
     }
   }

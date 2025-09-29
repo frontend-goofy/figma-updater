@@ -25,6 +25,7 @@
     "cac": "6.7.14",
     "consola": "3.4.2",
     "dotenv": "16.4.7",
+    "fast-levenshtein": "2.0.6",
     "prompts": "2.4.2"
   },
   "devDependencies": {
