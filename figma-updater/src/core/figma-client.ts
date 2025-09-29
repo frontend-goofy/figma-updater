@@ -1,5 +1,4 @@
-import {
-  type GetFileNodesResponse,
+import { type GetFileNodesResponse,
   type GetFileResponse,
   type GetFileVersionsResponse,
   type Node,
@@ -104,6 +103,7 @@ export class FigmaClient {
 
   async getDocument(figmaUrl: string, versionId: string): Promise<GetFileResponse> {
     const response = await this.request(figmaUrl, `?version=${versionId}&depth=1`);
+
     const data = await response.json();
 
     FigmaClient.assertFileResponse(data);
