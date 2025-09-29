@@ -39,16 +39,13 @@ function formatTranslations(translations: TranslationsMap): Record<string, strin
 }
 
 function buildPrompt(oldText: string, translations: TranslationsMap): string {
-  return `Please search through all the string values of the following JSON object and identify the file path where the string "${oldText}" is present.
+  return `You are given a JSON object where each KEY is a localized string and the VALUE lists file references for that string (comma separated, in "path:line" format).
 
-The JSON maps localized strings to file references. File references use the PO format "path:line" and multiple references can exist for a single string (comma separated).
+Find the key that best matches "${oldText}". You may ignore differences in punctuation, spaces, dashes and Unicode symbol variants, but reject matches that change the meaning or add extra words.
 
-Rules:
-- Match must be exact ignoring punctuation, spaces, dashes or Unicode symbol variants.
-- Do not match if additional words are present or the meaning changes.
-- Return all exact or relaxed matches. If nothing fits, respond with {"codePath": "None"}.
+Return EVERY file reference for the best matching key. If nothing matches, respond with an empty array.
 
-Respond strictly as JSON: {"codePath": "<value>"}.
+Respond strictly as JSON: {"codePaths": ["<path:line>"]}.
 
 JSON object:
 ${JSON.stringify(formatTranslations(translations), null, 2)}
@@ -80,7 +77,7 @@ function chunkTranslations(translations: TranslationsMap): TranslationsMap[] {
   return chunks;
 }
 
-type PromptResult = string | undefined | null;
+type PromptResult = string[] | undefined | null;
 
 interface FetchResponse {
   ok: boolean;
@@ -105,9 +102,12 @@ function buildRequestBody(model: string, prompt: string) {
         schema: {
           type: 'object',
           properties: {
-            codePath: { type: 'string' },
+            codePaths: {
+              type: 'array',
+              items: { type: 'string' },
+            },
           },
-          required: ['codePath'],
+          required: ['codePaths'],
           additionalProperties: false,
         },
       },
@@ -118,7 +118,7 @@ function buildRequestBody(model: string, prompt: string) {
 export class ElizaClient {
   constructor(private readonly options: ElizaConfig | undefined) {}
 
-  async findCodePath(oldText: string, translations: TranslationsMap): Promise<string | null> {
+  async findCodePaths(oldText: string, translations: TranslationsMap): Promise<string[] | null> {
     if (!this.options || !this.options.endpoint || !this.options.apiKey || !this.options.model) {
       return null;
     }
@@ -138,7 +138,7 @@ export class ElizaClient {
         return null;
       }
 
-      if (typeof result === 'string') {
+      if (Array.isArray(result) && result.length > 0) {
         return result;
       }
     }
@@ -204,13 +204,31 @@ export class ElizaClient {
     }
 
     try {
-      const parsed = JSON.parse(content) as { codePath?: string };
+      const parsed = JSON.parse(content) as { codePath?: string; codePaths?: unknown };
 
-      if (!parsed.codePath || parsed.codePath === 'None') {
-        return undefined;
+      if (Array.isArray(parsed.codePaths)) {
+        const sanitized = parsed.codePaths
+          .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+          .map((item) => item.trim());
+
+        if (sanitized.length === 0) {
+          return undefined;
+        }
+
+        return sanitized;
       }
 
-      return parsed.codePath;
+      if (typeof parsed.codePath === 'string') {
+        const trimmed = parsed.codePath.trim();
+
+        if (!trimmed || trimmed === 'None') {
+          return undefined;
+        }
+
+        return [trimmed];
+      }
+
+      return undefined;
     } catch (error) {
       logError(error, { context: 'Не удалось разобрать ответ Eliza API' });
       return null;

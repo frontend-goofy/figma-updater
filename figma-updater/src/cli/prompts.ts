@@ -13,7 +13,7 @@ export async function promptForFigmaUrl(initial?: string): Promise<string> {
       name: 'figmaUrl',
       message: 'Вставьте ссылку на макет Figma',
       initial,
-      validate(value) {
+      validate(value: string) {
         return value && value.includes('figma.com') ? true : 'Укажите корректную ссылку на Figma.';
       },
     },

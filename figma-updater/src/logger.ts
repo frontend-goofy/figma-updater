@@ -53,16 +53,24 @@ export function withErrorContext(error: unknown, context: string): Error {
 }
 
 export function clearLine() {
-  process.stdout.clearLine(0);
-  process.stdout.cursorTo(0);
+  if (typeof process.stdout.clearLine === 'function') {
+    process.stdout.clearLine(0);
+  }
+
+  if (typeof process.stdout.cursorTo === 'function') {
+    process.stdout.cursorTo(0);
+  }
 }
 
 export function writeLine(output: string) {
   clearLine();
 
-  if (output.length < process.stdout.columns) {
+  const columns = typeof process.stdout.columns === 'number' ? process.stdout.columns : null;
+
+  if (!columns || output.length < columns) {
     process.stdout.write(output);
-  } else {
-    process.stdout.write(output.substring(0, process.stdout.columns - 1));
+    return;
   }
+
+  process.stdout.write(output.substring(0, columns - 1));
 }
