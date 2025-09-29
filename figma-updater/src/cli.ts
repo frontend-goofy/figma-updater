@@ -5,7 +5,7 @@ import 'dotenv/config';
 import path from 'node:path';
 import { cac } from 'cac';
 
-import { logger } from './logger.js';
+import { logError, logger } from './logger.js';
 import { run, listVersions } from './index.js';
 import { promptForDirectory, promptForFigmaUrl, promptForVersions } from './cli/prompts.js';
 
@@ -84,7 +84,7 @@ cli
         directory,
       });
     } catch (error) {
-      logger.error((error as Error).message);
+      logError(error, { context: 'Ошибка выполнения команды' });
       process.exitCode = 1;
     }
   });

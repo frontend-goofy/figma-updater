@@ -2,7 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { LoadedConfig } from '../config/types.js';
-import { logger } from '../logger.js';
+import { logError, logger } from '../logger.js';
 import type { DiffMapping } from './types.js';
 import { ElizaClient } from './eliza-client.js';
 import { TranslationCatalog, type TranslationsMap } from './translation-catalog.js';
@@ -64,7 +64,7 @@ export class FileRewriter {
     try {
       translations = await this.options.translations.read();
     } catch (error) {
-      logger.error(`Не удалось прочитать файл переводов: ${(error as Error).message}`);
+      logError(error, { context: 'Не удалось прочитать файл переводов' });
       return;
     }
 
@@ -96,7 +96,7 @@ export class FileRewriter {
             break;
           }
         } catch (error) {
-          logger.error(`Ошибка при обновлении файла ${targetPath}: ${(error as Error).message}`);
+          logError(error, { context: `Ошибка при обновлении файла ${targetPath}` });
         }
       }
 
