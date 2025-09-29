@@ -64,11 +64,13 @@ cli
         throw new Error('Не удалось определить версии макета.');
       }
 
-      let directory = flags.dir;
-
-      if (!directory) {
+      if (!directory && !flags.list) {
         const answer = await promptForDirectory(process.cwd());
         directory = answer && answer.trim().length > 0 ? answer.trim() : '.';
+      }
+
+      if (!directory) {
+        directory = '.';
       }
 
       await run({
