@@ -1,66 +1,84 @@
-import { logger } from './logger.js';
-import type { DiffMapping, GetDiffsOptions, LoadedConfig } from './types.js';
-import { loadConfig } from './modules/config.js';
-import { getTextDiffsMapping } from './modules/diff-mapping.js';
-import { getFigmaVersionsList } from './modules/figma-api.js';
-import { applyDiffs } from './modules/file-updater.js';
+import path from 'node:path';
 
-export interface RunOptions extends GetDiffsOptions {
+import { loadConfig, type LoadedConfig, type VersionInfo } from './config/index.js';
+import { logger } from './logger.js';
+import type { DiffMapping, GetDiffsOptions } from './types.js';
+import { FigmaUpdaterWorkflow } from './core/workflow.js';
+
+export interface RuntimeOptions {
   cwd?: string;
+  directory?: string;
+}
+
+export interface RunOptions extends GetDiffsOptions, RuntimeOptions {
   listOnly?: boolean;
 }
 
-async function ensureVersions(
-  config: LoadedConfig,
-  figmaUrl: string,
-  oldVersion?: string,
-  newVersion?: string,
-): Promise<{ diffs?: DiffMapping; versions?: Awaited<ReturnType<typeof getFigmaVersionsList>> } | undefined> {
+async function createWorkflow(options: RuntimeOptions): Promise<FigmaUpdaterWorkflow> {
+  const { cwd, directory } = options;
+  const resolvedCwd = cwd ? path.resolve(cwd) : process.cwd();
+  const config: LoadedConfig = await loadConfig({ cwd: resolvedCwd, targetRoot: directory });
+
+  return new FigmaUpdaterWorkflow(config);
+}
+
+export async function listVersions(figmaUrl: string, options: RuntimeOptions = {}): Promise<VersionInfo[] | null> {
+  const workflow = await createWorkflow(options);
+  return workflow.listVersions(figmaUrl);
+}
+
+export async function getDiffs(
+  options: GetDiffsOptions & RuntimeOptions,
+): Promise<DiffMapping | undefined> {
+  const workflow = await createWorkflow(options);
+  const { figmaUrl, oldVersion, newVersion } = options;
+
   if (!oldVersion || !newVersion) {
-    const versions = await getFigmaVersionsList(config, figmaUrl);
+    logger.warn('Необходимо указать обе версии макета для расчета diff.');
+    return undefined;
+  }
+
+  return workflow.buildDiffs({ figmaUrl, oldVersion, newVersion });
+}
+
+export async function run(options: RunOptions): Promise<void> {
+  const { figmaUrl, oldVersion, newVersion, listOnly, ...runtime } = options;
+  const workflow = await createWorkflow(runtime);
+
+  if (!oldVersion || !newVersion) {
+    const versions = await workflow.listVersions(figmaUrl);
 
     if (!versions) {
       logger.error('Версии макета не найдены.');
-      return undefined;
+      return;
     }
 
     logger.success('Доступные версии:');
     versions.forEach((version) => {
-      logger.info(`${version.id} ${version.label ?? ''}`.trim());
-      logger.info(new Date(version.created_at).toLocaleString());
-      logger.info(version.user.handle);
+      const label = version.label ? ` ${version.label}` : '';
+      logger.info(`${version.id}${label}`.trim());
+      logger.info(new Date(version.createdAt).toLocaleString());
+      logger.info(version.author);
       logger.info('');
     });
 
-    return { versions };
-  }
-
-  const diffs = await getTextDiffsMapping(config, figmaUrl, oldVersion, newVersion);
-
-  return { diffs };
-}
-
-export async function getDiffs(options: GetDiffsOptions, cwd?: string): Promise<DiffMapping | undefined> {
-  const config = await loadConfig(cwd);
-  const result = await ensureVersions(config, options.figmaUrl, options.oldVersion, options.newVersion);
-
-  return result?.diffs;
-}
-
-export async function run(options: RunOptions) {
-  const { figmaUrl, oldVersion, newVersion, listOnly, cwd } = options;
-  const config = await loadConfig(cwd);
-  const result = await ensureVersions(config, figmaUrl, oldVersion, newVersion);
-
-  if (!result?.diffs) {
     return;
   }
 
-  logger.info(`Найдено изменений: ${result.diffs.length}`);
+  const diffs = await workflow.buildDiffs({ figmaUrl, oldVersion, newVersion });
 
-  result.diffs.forEach((pair) => {
+  if (diffs.length === 0) {
+    logger.info('Изменений не найдено.');
+    return;
+  }
+
+  logger.info(`Найдено изменений: ${diffs.length}`);
+
+  diffs.forEach((pair) => {
     const [from, to] = Object.entries(pair)[0];
-    logger.info(`• "${from}" → "${to}"`);
+    if (from && to) {
+      logger.info(`• "${from}" → "${to}"`);
+    }
   });
 
   if (listOnly) {
@@ -68,8 +86,7 @@ export async function run(options: RunOptions) {
     return;
   }
 
-  await applyDiffs({ diffs: result.diffs, config });
+  await workflow.applyDiffs(diffs);
 }
 
 export { loadConfig };
-export type { DiffMapping };
