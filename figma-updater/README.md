@@ -79,19 +79,19 @@ npx figma-updater
 Показать версии макета:
 
 ```bash
-npx figma-updater https://www.figma.com/file/XXXXX/project
+NODE_TLS_REJECT_UNAUTHORIZED=0 npx figma-updater https://www.figma.com/file/XXXXX/project
 ```
 
 Применить правки между двумя версиями в указанной директории:
 
 ```bash
-npx figma-updater https://www.figma.com/file/XXXXX/project --old=123-abc --new=456-def --dir ./apps/frontend
+NODE_TLS_REJECT_UNAUTHORIZED=0 npx figma-updater https://www.figma.com/file/XXXXX/project --old=123-abc --new=456-def --dir ./apps/frontend
 ```
 
 Посмотреть diff без замены файлов:
 
 ```bash
-npx figma-updater https://www.figma.com/file/XXXXX/project --old=123-abc --new=456-def --list
+NODE_TLS_REJECT_UNAUTHORIZED=0 npx figma-updater https://www.figma.com/file/XXXXX/project --old=123-abc --new=456-def --list
 ```
 
 ## Программный API

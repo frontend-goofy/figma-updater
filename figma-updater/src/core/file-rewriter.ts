@@ -54,7 +54,7 @@ export class FileRewriter {
       return [];
     }
 
-    logger.info(`Eliza API подсказала путь: ${suggested}`);
+    logger.info(`Eliza API подсказала путь: ${suggested}. Если строка не обновится автоматически, попробуйте сделать это вручную.`);
     return [suggested];
   }
 
@@ -91,7 +91,7 @@ export class FileRewriter {
           const success = await replaceInFile(targetPath, oldText, newText);
 
           if (success) {
-            logger.success(`Файл обновлен: ${targetPath}`);
+            logger.success(`Файл обновлен: ${targetPath}. Строка "${oldText}" заменена на "${newText}".`);
             applied = true;
             break;
           }
