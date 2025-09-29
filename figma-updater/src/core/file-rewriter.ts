@@ -1,6 +1,8 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import levenshtein from 'fast-levenshtein';
+
 import type { LoadedConfig } from '../config/types.js';
 import { logError, logger } from '../logger.js';
 import type { DiffMapping } from './types.js';
@@ -11,6 +13,8 @@ interface ReplacementCandidate {
   codePath: string;
   searchText: string;
 }
+
+const MAX_LEVENSHTEIN_DISTANCE = 4;
 
 async function replaceInFile(filePath: string, searchText: string, newText: string): Promise<boolean> {
   const content = await readFile(filePath, 'utf8');
@@ -62,10 +66,6 @@ export class FileRewriter {
       return [];
     }
 
-    logger.info(
-      `Eliza API подсказала путь${suggested.length > 1 ? 'и' : ''}: ${suggested.join(', ')}. Если строка не обновится автоматически, попробуйте сделать это вручную.`,
-    );
-
     const uniqueCandidates = new Map<string, ReplacementCandidate>();
 
     for (const codePath of suggested) {
@@ -100,7 +100,29 @@ export class FileRewriter {
       }
     }
 
-    return [...uniqueCandidates.values()];
+    const candidates = [...uniqueCandidates.values()];
+
+    const filteredCandidates = candidates.filter((candidate) => {
+      if (candidate.searchText === oldText) {
+        return true;
+      }
+
+      const distance = levenshtein.get(oldText, candidate.searchText);
+
+      return distance <= MAX_LEVENSHTEIN_DISTANCE;
+    });
+
+    if (filteredCandidates.length === 0) {
+      return [];
+    }
+
+    const suggestedPaths = filteredCandidates.map((candidate) => candidate.codePath);
+
+    logger.info(
+      `Eliza API подсказала путь${suggestedPaths.length > 1 ? 'и' : ''}: ${suggestedPaths.join(', ')}. Если строка не обновится автоматически, попробуйте сделать это вручную.`,
+    );
+
+    return filteredCandidates;
   }
 
   async applyDiffs(diffs: DiffMapping): Promise<void> {

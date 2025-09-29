@@ -45,6 +45,14 @@ declare module 'consola' {
   export function createConsola(...args: any[]): any;
 }
 
+declare module 'fast-levenshtein' {
+  const levenshtein: {
+    get: (a: string, b: string) => number;
+  };
+
+  export default levenshtein;
+}
+
 declare module '@figma/rest-api-spec' {
   export interface Version {
     id: string;
