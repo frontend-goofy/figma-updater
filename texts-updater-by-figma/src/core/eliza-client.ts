@@ -1,17 +1,21 @@
 import type { ElizaConfig } from '../types.js';
-import { logError } from '../logger.js';
+import { logError, logger } from '../logger.js';
 import type { TranslationsMap } from './translation-catalog.js';
 
 const PROMPT_CHUNK_MAX_ENTRIES = 200;
 const PROMPT_CHUNK_MAX_LENGTH = 12_000;
+const REQUEST_TEMPERATURE = 0.3;
+
+type ElizaMessage = {
+  message?: {
+    content?: string;
+  };
+};
 
 interface ElizaResponse {
+  choices?: ElizaMessage[];
   response?: {
-    choices?: Array<{
-      message?: {
-        content?: string;
-      };
-    }>;
+    choices?: ElizaMessage[];
   };
 }
 
@@ -87,11 +91,25 @@ function chunkTranslations(translations: TranslationsMap): TranslationsMap[] {
   let currentEntries: Array<readonly [string, string[]]> = [];
   let currentLength = 0;
 
+  const logChunkState = (
+    entries: Array<readonly [string, string[]]>,
+    length: number,
+    action: 'flush' | 'append' | 'start-over',
+  ) => {
+    logger.debug(
+      'Eliza chunk %s: entries=%d, promptLength=%d',
+      action,
+      entries.length,
+      length,
+    );
+  };
+
   const flush = () => {
     if (currentEntries.length === 0) {
       return;
     }
 
+    logChunkState(currentEntries, currentLength, 'flush');
     chunks.push(buildChunk(currentEntries));
     currentEntries = [];
     currentLength = 0;
@@ -108,7 +126,13 @@ function chunkTranslations(translations: TranslationsMap): TranslationsMap[] {
       flush();
       currentEntries = [entry];
       currentLength = getPromptLength(currentEntries);
+      logChunkState(currentEntries, currentLength, 'start-over');
       if (currentLength >= PROMPT_CHUNK_MAX_LENGTH) {
+        logger.warn(
+          'Eliza chunk single-entry prompt exceeds max length (%d >= %d). Prompt will be sent as-is.',
+          currentLength,
+          PROMPT_CHUNK_MAX_LENGTH,
+        );
         flush();
       }
       continue;
@@ -116,6 +140,7 @@ function chunkTranslations(translations: TranslationsMap): TranslationsMap[] {
 
     currentEntries = candidateEntries;
     currentLength = candidateLength;
+    logChunkState(currentEntries, currentLength, 'append');
 
     if (
       currentEntries.length >= PROMPT_CHUNK_MAX_ENTRIES ||
@@ -137,6 +162,7 @@ interface FetchResponse {
   status: number;
   statusText: string;
   json(): Promise<unknown>;
+  text(): Promise<string>;
 }
 
 function buildRequestBody(model: string, prompt: string) {
@@ -148,6 +174,7 @@ function buildRequestBody(model: string, prompt: string) {
         content: prompt,
       },
     ],
+    temperature: REQUEST_TEMPERATURE,
     response_format: {
       type: 'json_schema',
       json_schema: {
@@ -183,19 +210,42 @@ export class ElizaClient {
       return null;
     }
 
-    for (const chunk of chunks) {
+    logger.debug('Eliza lookup started: text="%s" (len=%d)', oldText, oldText.length);
+    logger.debug(
+      'Eliza configured with endpoint=%s, model=%s. Translation chunks=%d',
+      endpoint,
+      model,
+      chunks.length,
+    );
+
+    for (const [index, chunk] of chunks.entries()) {
       const prompt = buildPrompt(oldText, chunk);
-      const result = await this.sendPrompt({ endpoint, apiKey, model, prompt });
+      logger.debug(
+        'Eliza chunk #%d/%d prompt length=%d, entries=%d',
+        index + 1,
+        chunks.length,
+        prompt.length,
+        Object.keys(chunk).length,
+      );
+      const result = await this.sendPrompt({ endpoint, apiKey, model, prompt, chunkIndex: index });
 
       if (result === null) {
+        logger.warn('Eliza chunk #%d returned null, aborting lookup', index + 1);
         return null;
       }
 
       if (Array.isArray(result) && result.length > 0) {
+        logger.success(
+          'Eliza chunk #%d returned %d path(s): %s',
+          index + 1,
+          result.length,
+          result.join(', '),
+        );
         return result;
       }
     }
 
+    logger.info('Eliza lookup finished without matches');
     return null;
   }
 
@@ -205,6 +255,7 @@ export class ElizaClient {
     body: unknown,
   ): Promise<FetchResponse | null> {
     try {
+      logger.debug('Eliza request: POST %s', endpoint);
       return (await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -214,7 +265,9 @@ export class ElizaClient {
         body: JSON.stringify(body),
       })) as FetchResponse;
     } catch (error) {
-      logError(error, { context: 'Сбой запроса к Eliza API' });
+      logError(error, {
+        context: `Сбой запроса к Eliza API: не удалось отправить запрос на ${endpoint}`,
+      });
       return null;
     }
   }
@@ -224,20 +277,40 @@ export class ElizaClient {
     apiKey: string;
     model: string;
     prompt: string;
+    chunkIndex: number;
   }): Promise<PromptResult> {
-    const { endpoint, apiKey, model, prompt } = options;
+    const { endpoint, apiKey, model, prompt, chunkIndex } = options;
     const body = buildRequestBody(model, prompt);
+    logger.debug('Eliza chunk #%d request body: %o', chunkIndex + 1, {
+      ...body,
+      messages: body.messages.map((message) => ({ ...message, content: '<omitted>' })),
+    });
     const response = await this.performRequest(endpoint, apiKey, body);
 
     if (!response) {
+      logger.warn('Eliza chunk #%d: запрос не был выполнен', chunkIndex + 1);
       return null;
     }
 
     if (!response.ok) {
-      logError(
-        new Error(`Ответ ${response.status} ${response.statusText}`),
-        { context: 'Сбой запроса к Eliza API' },
-      );
+      const errorBody = await response
+        .text()
+        .then((text) => text)
+        .catch((error) => {
+          logError(error, {
+            context: 'Eliza API: не удалось прочитать тело ошибочного ответа',
+          });
+          return null;
+        });
+
+      logError(new Error(`Ответ ${response.status} ${response.statusText}`), {
+        context: `Сбой запроса к Eliza API (chunk #${chunkIndex + 1})`,
+      });
+
+      if (errorBody) {
+        logger.error('Eliza API error body: %s', errorBody);
+      }
+
       return null;
     }
 
@@ -245,14 +318,17 @@ export class ElizaClient {
 
     try {
       data = (await response.json()) as ElizaResponse;
+      logger.debug('Eliza chunk #%d raw response: %o', chunkIndex + 1, data);
     } catch (error) {
       logError(error, { context: 'Не удалось прочитать ответ Eliza API' });
       return null;
     }
 
-    const content = data.response?.choices?.[0]?.message?.content;
+    const content =
+      data.response?.choices?.[0]?.message?.content ?? data.choices?.[0]?.message?.content;
 
     if (!content) {
+      logger.info('Eliza chunk #%d: ответ не содержит контента', chunkIndex + 1);
       return undefined;
     }
 
@@ -265,9 +341,11 @@ export class ElizaClient {
           .map((item) => item.trim());
 
         if (sanitized.length === 0) {
+          logger.info('Eliza chunk #%d: массив путей пустой после фильтрации', chunkIndex + 1);
           return undefined;
         }
 
+        logger.debug('Eliza chunk #%d: получено %d пути(ей)', chunkIndex + 1, sanitized.length);
         return sanitized;
       }
 
@@ -275,12 +353,15 @@ export class ElizaClient {
         const trimmed = parsed.codePath.trim();
 
         if (!trimmed || trimmed === 'None') {
+          logger.info('Eliza chunk #%d: получен пустой одиночный путь', chunkIndex + 1);
           return undefined;
         }
 
+        logger.debug('Eliza chunk #%d: получен одиночный путь', chunkIndex + 1);
         return [trimmed];
       }
 
+      logger.info('Eliza chunk #%d: ответ не содержит ожидаемых полей', chunkIndex + 1);
       return undefined;
     } catch (error) {
       logError(error, { context: 'Не удалось разобрать ответ Eliza API' });
