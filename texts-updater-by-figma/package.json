@@ -22,6 +22,7 @@
   },
   "devDependencies": {
     "@swc/helpers": "0.5.17",
+    "@types/fast-levenshtein": "0.0.4",
     "@types/node": "22.12.0",
     "@types/prompts": "2.4.9",
     "@yandex-id/buildx": "0.1.0",
