@@ -1,8 +1,8 @@
 import path from 'node:path';
 
-import { loadConfig, type LoadedConfig, type VersionInfo } from './config/index.js';
+import { loadConfig } from './config.js';
 import { logger } from './logger.js';
-import type { DiffMapping, GetDiffsOptions } from './types.js';
+import type { DiffMapping, GetDiffsOptions, LoadedConfig, VersionInfo } from './types.js';
 import { FigmaUpdaterWorkflow } from './core/workflow.js';
 
 export interface RuntimeOptions {

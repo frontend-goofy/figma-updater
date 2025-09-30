@@ -2,8 +2,19 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { DEFAULT_CONFIG } from './defaults.js';
 import type { FigmaUpdaterConfig, LoadedConfig } from './types.js';
+
+export const DEFAULT_TRANSLATIONS_PATH = 'src/locales/ru.po';
+
+export const DEFAULT_CONFIG: FigmaUpdaterConfig = {
+  figma: {
+    apiUrl: process.env.FIGMA_API_URL ?? 'https://api.figma.com/v1/files/',
+    token: process.env.FIGMA_TOKEN ?? null,
+  },
+  translations: {
+    path: DEFAULT_TRANSLATIONS_PATH,
+  },
+};
 
 export interface LoadConfigOptions {
   cwd?: string;
@@ -35,12 +46,12 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Loade
     ...DEFAULT_CONFIG.figma,
     ...userConfig?.figma,
     token: userConfig?.figma?.token ?? DEFAULT_CONFIG.figma.token ?? null,
-  };
+  } satisfies FigmaUpdaterConfig['figma'];
 
   const translationsConfig = {
     ...DEFAULT_CONFIG.translations,
     ...userConfig?.translations,
-  };
+  } satisfies FigmaUpdaterConfig['translations'];
 
   const rootDir = path.resolve(cwd, targetRoot ?? '.');
 

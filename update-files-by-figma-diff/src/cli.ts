@@ -2,8 +2,6 @@
 
 import getFigmaDiffs from 'figma-diff';
 import makeEdits from './index.js';
-import 'dotenv/config';
-
 const args = process.argv.slice(2);
 const [figmaUrl, oldVersion, newVersion] = args;
 
@@ -23,4 +21,4 @@ async function main() {
     await makeEdits({ diffs });
 }
 
-main()
+main();

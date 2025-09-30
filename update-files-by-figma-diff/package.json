@@ -27,7 +27,6 @@
   "type": "module",
   "dependencies": {
     "@types/node": "^24.2.1",
-    "dotenv": "^17.2.1",
     "figma-diff": "file:../figma-diffs"
   },
   "devDependencies": {
