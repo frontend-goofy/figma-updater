@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-import 'dotenv/config';
-
 import { cac } from 'cac';
 
 import getFigmaDiffs from './index.js';

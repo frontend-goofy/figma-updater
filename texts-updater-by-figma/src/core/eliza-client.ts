@@ -1,8 +1,9 @@
-import type { ElizaConfig } from '../config/types.js';
+import type { ElizaConfig } from '../types.js';
 import { logError } from '../logger.js';
 import type { TranslationsMap } from './translation-catalog.js';
 
-const PROMPT_CHUNK_SIZE = 200;
+const PROMPT_CHUNK_MAX_ENTRIES = 200;
+const PROMPT_CHUNK_MAX_LENGTH = 12_000;
 
 interface ElizaResponse {
   response?: {
@@ -52,27 +53,79 @@ ${JSON.stringify(formatTranslations(translations), null, 2)}
 `;
 }
 
+function buildChunk(entries: Array<readonly [string, string[]]>): TranslationsMap {
+  const chunk: TranslationsMap = {};
+
+  for (const [text, locations] of entries) {
+    chunk[text] = locations;
+  }
+
+  return chunk;
+}
+
+function getPromptLength(entries: Array<readonly [string, string[]]>): number {
+  if (entries.length === 0) {
+    return 0;
+  }
+
+  const chunk = buildChunk(entries);
+  const formatted = formatTranslations(chunk);
+
+  return JSON.stringify(formatted, null, 2).length;
+}
+
 function chunkTranslations(translations: TranslationsMap): TranslationsMap[] {
-  const entries = Object.entries(translations)
+  const normalizedEntries = Object.entries(translations)
     .map(([text, locations]) => [text, normalizeLocations(locations)] as const)
     .filter(([, locations]) => locations.length > 0);
 
-  if (entries.length === 0) {
+  if (normalizedEntries.length === 0) {
     return [];
   }
 
   const chunks: TranslationsMap[] = [];
+  let currentEntries: Array<readonly [string, string[]]> = [];
+  let currentLength = 0;
 
-  for (let index = 0; index < entries.length; index += PROMPT_CHUNK_SIZE) {
-    const slice = entries.slice(index, index + PROMPT_CHUNK_SIZE);
-    const chunk: TranslationsMap = {};
-
-    for (const [text, locations] of slice) {
-      chunk[text] = locations;
+  const flush = () => {
+    if (currentEntries.length === 0) {
+      return;
     }
 
-    chunks.push(chunk);
+    chunks.push(buildChunk(currentEntries));
+    currentEntries = [];
+    currentLength = 0;
+  };
+
+  for (const entry of normalizedEntries) {
+    const candidateEntries = [...currentEntries, entry];
+    const candidateLength = getPromptLength(candidateEntries);
+
+    const exceedsEntryLimit = candidateEntries.length > PROMPT_CHUNK_MAX_ENTRIES;
+    const exceedsLengthLimit = candidateLength > PROMPT_CHUNK_MAX_LENGTH;
+
+    if (currentEntries.length > 0 && (exceedsEntryLimit || exceedsLengthLimit)) {
+      flush();
+      currentEntries = [entry];
+      currentLength = getPromptLength(currentEntries);
+      if (currentLength >= PROMPT_CHUNK_MAX_LENGTH) {
+        flush();
+      }
+      continue;
+    }
+
+    currentEntries = candidateEntries;
+    currentLength = candidateLength;
+
+    if (
+      currentEntries.length >= PROMPT_CHUNK_MAX_ENTRIES ||
+      currentLength >= PROMPT_CHUNK_MAX_LENGTH
+    ) {
+      flush();
+    }
   }
+
+  flush();
 
   return chunks;
 }
