@@ -1,6 +1,6 @@
 import { type Node, type TextNode } from '@figma/rest-api-spec';
 
-import type { DiffMapping } from './types.js';
+import type { DiffMapping } from '../types.js';
 import { FigmaClient } from './figma-client.js';
 
 type NodeWithChildren = Extract<Node, { children: any[] }>;

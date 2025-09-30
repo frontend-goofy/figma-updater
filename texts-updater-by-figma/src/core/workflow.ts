@@ -1,9 +1,8 @@
-import type { LoadedConfig, VersionInfo } from '../config/types.js';
+import type { DiffMapping, LoadedConfig, VersionInfo } from '../types.js';
 import { DiffBuilder } from './diff-builder.js';
 import { ElizaClient } from './eliza-client.js';
 import { FigmaClient } from './figma-client.js';
 import { FileRewriter } from './file-rewriter.js';
-import type { DiffMapping } from './types.js';
 import { TranslationCatalog } from './translation-catalog.js';
 
 export interface BuildDiffOptions {

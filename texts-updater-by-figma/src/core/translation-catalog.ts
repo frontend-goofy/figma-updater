@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import type { LoadedConfig } from '../config/types.js';
+import type { LoadedConfig } from '../types.js';
 
 export type TranslationsMap = Record<string, string[]>;
 
