@@ -1,6 +1,6 @@
 import prompts from 'prompts';
 
-import type { VersionInfo } from '../types.js';
+import type { VersionInfo } from './types.js';
 
 const onCancel = () => {
   throw new Error('Операция отменена пользователем.');
