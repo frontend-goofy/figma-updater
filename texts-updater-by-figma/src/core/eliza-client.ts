@@ -1,4 +1,4 @@
-import type { ElizaConfig } from '../config/types.js';
+import type { ElizaConfig } from '../types.js';
 import { logError } from '../logger.js';
 import type { TranslationsMap } from './translation-catalog.js';
 

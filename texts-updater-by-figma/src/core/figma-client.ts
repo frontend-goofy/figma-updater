@@ -5,7 +5,7 @@ import { type GetFileNodesResponse,
   type Version,
 } from '@figma/rest-api-spec';
 
-import type { FigmaConfig } from '../config/types.js';
+import type { FigmaConfig } from '../types.js';
 import { withErrorContext } from '../logger.js';
 
 function ensureTrailingSlash(input: string): string {

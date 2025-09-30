@@ -3,9 +3,8 @@ import path from 'node:path';
 
 import levenshtein from 'fast-levenshtein';
 
-import type { LoadedConfig } from '../config/types.js';
+import type { DiffMapping, LoadedConfig } from '../types.js';
 import { logError, logger } from '../logger.js';
-import type { DiffMapping } from './types.js';
 import { ElizaClient } from './eliza-client.js';
 import { TranslationCatalog, type TranslationsMap } from './translation-catalog.js';
 
