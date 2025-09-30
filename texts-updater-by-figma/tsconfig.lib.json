@@ -8,5 +8,5 @@
     "emitDeclarationOnly": true,
     "downlevelIteration": true
   },
-  "include": ["src", "index.test.ts"]
+  "include": ["src"]
 }

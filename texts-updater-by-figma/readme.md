@@ -1,6 +1,6 @@
-# @yandex-id/figma-updater
+# @yandex-id/texts-updater-by-figma
 
-`@yandex-id/figma-updater` — CLI и библиотека для автоматического переноса текстовых правок из макетов Figma в кодовую базу.
+`@yandex-id/texts-updater-by-figma` — пакет для автоматического переноса текстовых правок из макетов Figma в кодовую базу.
 Инструмент объединяет скачивание версий из Figma, построение diff по текстовым узлам и замену строк в файлах проекта
 по данным из PO-файла переводов или с помощью Eliza API.
 
@@ -11,33 +11,43 @@
 - Интерактивный CLI со сценарием: ссылка → выбор версий → указание директории → применение правок.
 - Просмотр изменений без применения (режим `--list`).
 - Замена строк в коде по данным PO-файла, поиск альтернативных путей через Eliza API.
-- Программный API для интеграции в пайплайны и свои скрипты.
 
 ## Установка
 
 ```bash
-npm install --save-dev @yandex-id/figma-updater
+npm install --save-dev @yandex-id/texts-updater-by-figma
 ```
 
 ## Конфигурация
 
-Создайте файл `figma-updater.config.js` в каталоге проекта (или используйте пример из корня репозитория) и заполните настройки:
+Создайте файл `texts-updater-by-figma.config.js` в каталоге проекта (или используйте пример из корня репозитория) и заполните настройки:
 
 ```js
 export default {
   figma: {
-    apiUrl: 'https://api.figma.com/v1/files/',
-    token: process.env.FIGMA_TOKEN,
+    /*
+        Базовый URL для Figma REST API. Можно переопределить при использовании прокси.
+    */
+    apiUrl: process.env.FIGMA_API_URL ?? 'https://api.figma.com/v1/files/',
+    /*
+        Персональный токен доступа Figma. Его можно задать здесь или через FIGMA_TOKEN.
+    */
+    token: process.env.FIGMA_TOKEN ?? '',
   },
   translations: {
-    // путь до PO-файла с переводами относительно директории запуска
+    /*
+        Относительный путь до PO-файла с переводами, который содержит ссылки на исходники.
+    */
     path: 'src/locales/ru.po',
   },
+    /*
+        Необязательная интеграция с Eliza API, используемая для поиска пути к файлу,
+        если строка не найдена в переводах. Оставьте пустым, чтобы отключить интеграцию.
+    */
   eliza: {
-    // интеграция необязательна, оставьте поля пустыми чтобы отключить
-    endpoint: process.env.ELIZA_ENDPOINT,
-    apiKey: process.env.ELIZA_TOKEN,
-    model: process.env.ELIZA_MODEL,
+    endpoint: process.env.ELIZA_ENDPOINT ?? '',
+    apiKey: process.env.ELIZA_TOKEN ?? '',
+    model: process.env.ELIZA_MODEL ?? '',
   },
 };
 ```
@@ -60,7 +70,7 @@ export default {
 ## Использование CLI
 
 ```bash
-npx figma-updater
+npx texts-updater-by-figma
 ```
 
 Дальнейший сценарий соответствует описанному флоу:
@@ -81,44 +91,20 @@ npx figma-updater
 Показать версии макета:
 
 ```bash
-NODE_TLS_REJECT_UNAUTHORIZED=0 npx figma-updater https://www.figma.com/file/XXXXX/project
+NODE_TLS_REJECT_UNAUTHORIZED=0 npx texts-updater-by-figma https://www.figma.com/file/XXXXX/project
 ```
 
 Применить правки между двумя версиями в указанной директории:
 
 ```bash
-NODE_TLS_REJECT_UNAUTHORIZED=0 npx figma-updater https://www.figma.com/file/XXXXX/project --old=123-abc --new=456-def --dir ./apps/frontend
+NODE_TLS_REJECT_UNAUTHORIZED=0 npx texts-updater-by-figma https://www.figma.com/file/XXXXX/project --old=123-abc --new=456-def --dir ./apps/frontend
 ```
 
 Посмотреть diff без замены файлов:
 
 ```bash
-NODE_TLS_REJECT_UNAUTHORIZED=0 npx figma-updater https://www.figma.com/file/XXXXX/project --old=123-abc --new=456-def --list
+NODE_TLS_REJECT_UNAUTHORIZED=0 npx texts-updater-by-figma https://www.figma.com/file/XXXXX/project --old=123-abc --new=456-def --list
 ```
-
-## Программный API
-
-```ts
-import { getDiffs, listVersions, run } from '@yandex-id/figma-updater';
-
-await listVersions('https://www.figma.com/file/XXXXX/project');
-
-const diffs = await getDiffs({
-  figmaUrl: 'https://www.figma.com/file/XXXXX/project',
-  oldVersion: '123-abc',
-  newVersion: '456-def',
-  directory: './apps/frontend',
-});
-
-await run({
-  figmaUrl: 'https://www.figma.com/file/XXXXX/project',
-  oldVersion: '123-abc',
-  newVersion: '456-def',
-  directory: './apps/frontend',
-});
-```
-
-Методы `getDiffs` и `run` автоматически используют конфигурацию из `figma-updater.config.js` в текущей директории (или в каталоге, переданном в `cwd`).
 
 ## Переменные окружения
 

@@ -17,7 +17,7 @@ interface CliFlags {
   cwd?: string;
 }
 
-const cli = cac('figma-updater');
+const cli = cac('texts-updater-by-figma');
 
 cli
   .command('[figmaUrl]')

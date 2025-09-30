@@ -1,6 +1,6 @@
 {
-  "name": "@yandex-id/figma-updater",
-  "version": "1.0.0",
+  "name": "@yandex-id/texts-updater-by-figma",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "build": "buildx",
@@ -11,15 +11,8 @@
     "prepare": "npm run build"
   },
   "bin": {
-    "figma-updater": "./bin/figma-updater.js"
+    "texts-updater-by-figma": "./bin/texts-updater.js"
   },
-  "main": "./lib/cjs/index.cjs",
-  "module": "./lib/es/index.mjs",
-  "types": "./lib/types/index.d.ts",
-  "files": [
-    "lib",
-    "README.md"
-  ],
   "dependencies": {
     "@figma/rest-api-spec": "0.33.0",
     "cac": "6.7.14",
@@ -42,5 +35,19 @@
     "ts-node": "10.9.2",
     "tsx": "4.20.4",
     "typescript": "5.9.2"
+  },
+  "files": [
+    "lib",
+    "readme.md"
+  ],
+  "main": "./lib/cjs/index.cjs",
+  "module": "./lib/es/index.mjs",
+  "types": "./lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "require": "./lib/cjs/index.cjs",
+      "import": "./lib/es/index.mjs"
+    }
   }
 }

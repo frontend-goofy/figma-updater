@@ -8,7 +8,7 @@ import type { FigmaUpdaterConfig, LoadedConfig } from './types.js';
 export interface LoadConfigOptions {
   cwd?: string;
   /**
-   * Relative path to the configuration file. Defaults to `figma-updater.config.js`.
+   * Relative path to the configuration file. Defaults to `texts-updater-by-figma.config.js`.
    */
   configFile?: string;
   /**
@@ -27,7 +27,7 @@ async function importConfig(configPath: string): Promise<Partial<FigmaUpdaterCon
 }
 
 export async function loadConfig(options: LoadConfigOptions = {}): Promise<LoadedConfig> {
-  const { cwd = process.cwd(), configFile = 'figma-updater.config.js', targetRoot } = options;
+  const { cwd = process.cwd(), configFile = 'texts-updater-by-figma.config.js', targetRoot } = options;
   const configPath = path.resolve(cwd, configFile);
   const userConfig = await importConfig(configPath);
 

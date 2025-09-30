@@ -1,4 +1,4 @@
-import { type CanvasNode, type GetFileNodesResponse,
+import { type GetFileNodesResponse,
   type GetFileResponse,
   type GetFileVersionsResponse,
   type Node,
