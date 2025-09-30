@@ -1,6 +1,6 @@
 import prompts from 'prompts';
 
-import type { VersionInfo } from './types.js';
+import type { VersionInfo, VersionSelectionResult } from './types.js';
 
 const onCancel = () => {
   throw new Error('Операция отменена пользователем.');
@@ -21,11 +21,6 @@ export async function promptForFigmaUrl(initial?: string): Promise<string> {
   );
 
   return figmaUrl;
-}
-
-export interface VersionSelectionResult {
-  oldVersion: string;
-  newVersion: string;
 }
 
 function formatVersion(version: VersionInfo): string {

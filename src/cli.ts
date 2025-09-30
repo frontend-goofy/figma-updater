@@ -6,14 +6,7 @@ import { cac } from 'cac';
 import { logError, logger } from './logger.js';
 import { run, listVersions } from './index.js';
 import { promptForDirectory, promptForFigmaUrl, promptForVersions } from './cli-prompts.js';
-
-interface CliFlags {
-  list?: boolean;
-  dir?: string;
-  old?: string;
-  new?: string;
-  cwd?: string;
-}
+import type { CliFlags } from './types.js';
 
 const cli = cac('texts-updater-by-figma');
 

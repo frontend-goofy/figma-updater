@@ -1,15 +1,9 @@
-import type { DiffMapping, LoadedConfig, VersionInfo } from '../types.js';
+import type { BuildDiffOptions, DiffMapping, LoadedConfig, VersionInfo } from '../types.js';
 import { DiffBuilder } from './diff-builder.js';
 import { ElizaClient } from './eliza-client.js';
 import { FigmaClient } from './figma-client.js';
 import { FileRewriter } from './file-rewriter.js';
 import { TranslationCatalog } from './translation-catalog.js';
-
-export interface BuildDiffOptions {
-  figmaUrl: string;
-  oldVersion: string;
-  newVersion: string;
-}
 
 export class FigmaUpdaterWorkflow {
   private readonly figmaClient: FigmaClient;
