@@ -1,18 +1,8 @@
-import type { ElizaConfig } from '../types.js';
+import type { ElizaConfig, ElizaResponse, FetchResponse, PromptResult } from '../types.js';
 import { logError } from '../logger.js';
 import type { TranslationsMap } from './translation-catalog.js';
 
 const PROMPT_CHUNK_SIZE = 200;
-
-interface ElizaResponse {
-  response?: {
-    choices?: Array<{
-      message?: {
-        content?: string;
-      };
-    }>;
-  };
-}
 
 function normalizeLocations(locations: string[] | undefined): string[] {
   if (!locations || locations.length === 0) {
@@ -75,15 +65,6 @@ function chunkTranslations(translations: TranslationsMap): TranslationsMap[] {
   }
 
   return chunks;
-}
-
-type PromptResult = string[] | undefined | null;
-
-interface FetchResponse {
-  ok: boolean;
-  status: number;
-  statusText: string;
-  json(): Promise<unknown>;
 }
 
 function buildRequestBody(model: string, prompt: string) {

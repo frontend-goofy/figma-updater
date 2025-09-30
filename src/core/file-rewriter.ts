@@ -3,15 +3,9 @@ import path from 'node:path';
 
 import levenshtein from 'fast-levenshtein';
 
-import type { DiffMapping, LoadedConfig } from '../types.js';
+import type { DiffMapping, FileRewriterOptions, ReplacementCandidate } from '../types.js';
 import { logError, logger } from '../logger.js';
-import { ElizaClient } from './eliza-client.js';
-import { TranslationCatalog, type TranslationsMap } from './translation-catalog.js';
-
-interface ReplacementCandidate {
-  codePath: string;
-  searchText: string;
-}
+import type { TranslationsMap } from './translation-catalog.js';
 
 const MAX_LEVENSHTEIN_DISTANCE = 4;
 
@@ -38,12 +32,6 @@ function normalizeLocations(locations: string[] | undefined): string[] {
 function resolvePath(rootDir: string, codePath: string): string {
   const [relativePath] = codePath.split(':');
   return path.resolve(rootDir, relativePath);
-}
-
-export interface FileRewriterOptions {
-  config: LoadedConfig;
-  translations: TranslationCatalog;
-  eliza: ElizaClient;
 }
 
 export class FileRewriter {

@@ -1,14 +1,12 @@
 import { createConsola } from 'consola';
 
-export const IS_TTY = process.stdout.isTTY && !process.env.CI;
+import type { ErrorLogOptions } from './types.js';
+
+export const IS_TTY = Boolean(process.stdout.isTTY && !process.env.CI);
 
 export const logger = createConsola();
 
-export interface ErrorLogOptions {
-  context?: string;
-}
-
-function buildErrorMessage(error: unknown): string {
+function toMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
@@ -24,17 +22,14 @@ function buildErrorMessage(error: unknown): string {
   }
 }
 
-export function logError(error: unknown, options: ErrorLogOptions = {}): void {
-  const { context } = options;
-  const baseMessage = buildErrorMessage(error);
-  const message = context ? `${context}: ${baseMessage}` : baseMessage;
-
-  logger.error(message);
+export function logError(error: unknown, { context }: ErrorLogOptions = {}): void {
+  const prefix = context ? `${context}: ` : '';
+  logger.error(`${prefix}${toMessage(error)}`);
 
   if (error instanceof Error && error.stack) {
-    const [, ...stack] = error.stack.split('\n');
-
-    stack
+    error.stack
+      .split('\n')
+      .slice(1)
       .map((line) => line.trim())
       .filter(Boolean)
       .forEach((line) => logger.error(line));
@@ -42,17 +37,11 @@ export function logError(error: unknown, options: ErrorLogOptions = {}): void {
 }
 
 export function withErrorContext(error: unknown, context: string): Error {
-  const baseMessage = buildErrorMessage(error);
-  const message = `${context}: ${baseMessage}`;
-
-  if (error instanceof Error) {
-    return new Error(message, { cause: error });
-  }
-
-  return new Error(message);
+  const message = `${context}: ${toMessage(error)}`;
+  return error instanceof Error ? new Error(message, { cause: error }) : new Error(message);
 }
 
-export function clearLine() {
+export function clearLine(): void {
   if (typeof process.stdout.clearLine === 'function') {
     process.stdout.clearLine(0);
   }
@@ -62,7 +51,7 @@ export function clearLine() {
   }
 }
 
-export function writeLine(output: string) {
+export function writeLine(output: string): void {
   clearLine();
 
   const columns = typeof process.stdout.columns === 'number' ? process.stdout.columns : null;
@@ -72,5 +61,5 @@ export function writeLine(output: string) {
     return;
   }
 
-  process.stdout.write(output.substring(0, columns - 1));
+  process.stdout.write(output.slice(0, columns - 1));
 }

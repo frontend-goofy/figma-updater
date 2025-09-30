@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import type { FigmaUpdaterConfig, LoadedConfig } from './types.js';
+import type { FigmaUpdaterConfig, LoadConfigOptions, LoadedConfig } from './types.js';
 
 export const DEFAULT_TRANSLATIONS_PATH = 'src/locales/ru.po';
 
@@ -15,18 +15,6 @@ export const DEFAULT_CONFIG: FigmaUpdaterConfig = {
     path: DEFAULT_TRANSLATIONS_PATH,
   },
 };
-
-export interface LoadConfigOptions {
-  cwd?: string;
-  /**
-   * Relative path to the configuration file. Defaults to `texts-updater-by-figma.config.js`.
-   */
-  configFile?: string;
-  /**
-   * Override the directory where files will be updated.
-   */
-  targetRoot?: string;
-}
 
 async function importConfig(configPath: string): Promise<Partial<FigmaUpdaterConfig> | null> {
   if (!existsSync(configPath)) {

@@ -1,4 +1,14 @@
 import type { Version } from '@figma/rest-api-spec';
+import type { ElizaClient } from './core/eliza-client.js';
+import type { TranslationCatalog } from './core/translation-catalog.js';
+
+export interface CliFlags {
+  list?: boolean;
+  dir?: string;
+  old?: string;
+  new?: string;
+  cwd?: string;
+}
 
 export type DiffPair = Record<string, string>;
 export type DiffMapping = DiffPair[];
@@ -50,4 +60,70 @@ export interface GetDiffsOptions {
   figmaUrl: string;
   oldVersion?: string;
   newVersion?: string;
+}
+
+export interface RuntimeOptions {
+  cwd?: string;
+  directory?: string;
+}
+
+export interface RunOptions extends GetDiffsOptions, RuntimeOptions {
+  listOnly?: boolean;
+}
+
+export interface LoadConfigOptions {
+  cwd?: string;
+  /**
+   * Relative path to the configuration file. Defaults to `texts-updater-by-figma.config.js`.
+   */
+  configFile?: string;
+  /**
+   * Override the directory where files will be updated.
+   */
+  targetRoot?: string;
+}
+
+export interface VersionSelectionResult {
+  oldVersion: string;
+  newVersion: string;
+}
+
+export interface BuildDiffOptions {
+  figmaUrl: string;
+  oldVersion: string;
+  newVersion: string;
+}
+
+export interface FileRewriterOptions {
+  config: LoadedConfig;
+  translations: TranslationCatalog;
+  eliza: ElizaClient;
+}
+
+export interface ReplacementCandidate {
+  codePath: string;
+  searchText: string;
+}
+
+export interface ErrorLogOptions {
+  context?: string;
+}
+
+export type PromptResult = string[] | undefined | null;
+
+export interface ElizaResponse {
+  response?: {
+    choices?: Array<{
+      message?: {
+        content?: string;
+      };
+    }>;
+  };
+}
+
+export interface FetchResponse {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  json(): Promise<unknown>;
 }

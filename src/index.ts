@@ -2,17 +2,15 @@ import path from 'node:path';
 
 import { loadConfig } from './config.js';
 import { logger } from './logger.js';
-import type { DiffMapping, GetDiffsOptions, LoadedConfig, VersionInfo } from './types.js';
+import type {
+  DiffMapping,
+  GetDiffsOptions,
+  LoadedConfig,
+  RunOptions,
+  RuntimeOptions,
+  VersionInfo,
+} from './types.js';
 import { FigmaUpdaterWorkflow } from './core/workflow.js';
-
-export interface RuntimeOptions {
-  cwd?: string;
-  directory?: string;
-}
-
-export interface RunOptions extends GetDiffsOptions, RuntimeOptions {
-  listOnly?: boolean;
-}
 
 async function createWorkflow(options: RuntimeOptions): Promise<FigmaUpdaterWorkflow> {
   const { cwd, directory } = options;
