@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
-function start() {
-  return import('../lib/es/index.mjs');
+async function start() {
+  await import('../lib/es/cli.mjs');
 }
 
-start();
+start().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

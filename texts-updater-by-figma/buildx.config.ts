@@ -2,7 +2,7 @@ import { defineConfig } from '@yandex-id/buildx';
 
 export default defineConfig({
   cleanDir: './lib',
-  input: 'src/index.ts',
+  input: ['src/index.ts', 'src/cli.ts'],
   output: [
     {
       format: 'es',
